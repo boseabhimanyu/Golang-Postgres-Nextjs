@@ -24,12 +24,12 @@ const (
 
 type Menu struct {
 	ID        uuid.UUID    `gorm:"type:uuid;primaryKey" json:"id"`
-	Name      string       `gorm:"type:varchar(255)" json:"name"`
-	Location  MenuLocation `gorm:"type:varchar(50)" json:"location"`
-	Status    bool         `gorm:"default:true" json:"status"`
+	Name      string       `gorm:"type:varchar(255);not null" json:"name"`
+	Location  MenuLocation `gorm:"type:varchar(50);not null;uniqueIndex" json:"location"`
+	Status    bool         `gorm:"not null;default:true" json:"status"`
 	Items     []MenuItem   `gorm:"type:jsonb;serializer:json" json:"items"`
-	CreatedAt time.Time    `gorm:"type:timestamptz" json:"createdAt"`
-	UpdatedAt time.Time    `gorm:"type:timestamptz" json:"updatedAt"`
+	CreatedAt time.Time    `gorm:"type:timestamptz;not null" json:"createdAt"`
+	UpdatedAt time.Time    `gorm:"type:timestamptz;not null" json:"updatedAt"`
 }
 
 type MenuItem struct {
