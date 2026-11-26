@@ -16,7 +16,7 @@ User can create, update and delete pages.
 
 ### Page Indexes
 
-The following MongoDB indexes are used by the Pages collection:
+The following PostgreSQL indexes are used by the Pages collection:
 
 | Index | Purpose |
 |---|---|

@@ -7,7 +7,7 @@ The authentication system uses:
 - JWT access tokens
 - JWT refresh tokens
 - HTTP-only cookies
-- MongoDB for refresh-token session storage
+- PostgreSQL for refresh-token session storage
 - Password hashing with bcrypt
 - Role information inside the access token
 - Multiple refresh-token sessions per user
@@ -77,7 +77,7 @@ Return tokens
 Set HTTP-only cookies
 ```
 
-The raw refresh token is **never stored in MongoDB**.
+The raw refresh token is **never stored in PostgreSQL**.
 
 Only its SHA-256 hash is stored.
 
@@ -131,7 +131,7 @@ Expires At
 
 The refresh token is also sent using an HTTP-only cookie.
 
-The raw token is not stored in MongoDB.
+The raw token is not stored in PostgreSQL.
 
 Instead:
 
@@ -142,7 +142,7 @@ Refresh Token
 SHA-256 Hash
       │
       ▼
-MongoDB
+PostgreSQL
 ```
 
 ---
@@ -298,7 +298,7 @@ Access Token
       Hash Refresh Token
           │
           ▼
-      Find active token in MongoDB
+      Find active token in PostgreSQL
           │
           ▼
       Check User Status
@@ -481,7 +481,7 @@ Therefore, logout affects the current refresh-token session rather than every se
 
 A refresh token by itself does not guarantee that the user can continue using the application.
 
-During refresh, the user is loaded from MongoDB and their account status is checked.
+During refresh, the user is loaded from PostgreSQL and their account status is checked.
 
 ```text
 Refresh Token
@@ -514,19 +514,19 @@ Longer lifetime
 
 Once the refresh token expires, it can no longer be used.
 
-MongoDB also has a TTL index on:
+PostgreSQL also has a TTL index on:
 
 ```text
 expires_at
 ```
 
-This allows MongoDB to automatically remove expired refresh-token documents.
+This allows PostgreSQL to automatically remove expired refresh-token documents.
 
 The application still checks expiration during token lookup; the TTL index is primarily for database cleanup.
 
 ---
 
-# 16. MongoDB Indexes
+# 16. PostgreSQL Indexes
 
 The `refresh_tokens` collection has indexes for the actual access patterns.
 
@@ -578,7 +578,7 @@ The original password is never stored.
 
 ### Refresh tokens
 
-Raw refresh tokens are not stored in MongoDB.
+Raw refresh tokens are not stored in PostgreSQL.
 
 ```text
 Refresh Token
@@ -662,7 +662,7 @@ After authentication changes, verify the following:
 - [ ] Access cookie is created
 - [ ] Refresh cookie is created
 - [ ] Refresh-token document is created
-- [ ] Raw refresh token is not stored in MongoDB
+- [ ] Raw refresh token is not stored in PostgreSQL
 - [ ] Access token expires as configured
 - [ ] Automatic refresh generates a new access token
 - [ ] `last_used_at` is updated after refresh
@@ -674,7 +674,7 @@ After authentication changes, verify the following:
 - [ ] Logging out one session does not revoke another session
 - [ ] Disabled users cannot refresh their session
 - [ ] Expired refresh tokens are rejected
-- [ ] Expired refresh-token documents are eventually removed by MongoDB TTL
+- [ ] Expired refresh-token documents are eventually removed by PostgreSQL TTL
 
 ---
 

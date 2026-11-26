@@ -42,7 +42,7 @@ The user's username is currently used as the TOTP account name.
 
 ## TOTP Secret Storage
 
-TOTP secrets are never stored as plaintext in MongoDB.
+TOTP secrets are never stored as plaintext in PostgreSQL.
 
 The configured `TOTP_ENCRYPTION_KEY` is hashed with SHA-256 to obtain a 32-byte AES-256 key. The TOTP secret is then encrypted using AES-256-GCM with a random nonce.
 
@@ -55,7 +55,7 @@ AES-256-GCM encryption
     ↓
 Base64 ciphertext
     ↓
-MongoDB
+PostgreSQL
 ```
 
 The TOTP secret fields are excluded from JSON responses.
@@ -221,7 +221,7 @@ Disabling global 2FA does not modify individual users' 2FA data.
 
 On application startup:
 
-1. MongoDB is connected.
+1. PostgreSQL is connected.
 2. Application settings are initialized if necessary.
 3. The persisted global 2FA setting is checked.
 4. If global 2FA is enabled, the required 2FA configuration is validated.

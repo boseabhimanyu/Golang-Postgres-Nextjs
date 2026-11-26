@@ -1,10 +1,10 @@
-## Go / Gin / MongoDB Backend Boilerplate
+## Go / Gin / PostgreSQL Backend Boilerplate
 
 ### Core
 
  - Go + Gin
 
- - MongoDB
+ - PostgreSQL
 
  - JWT authentication
 
@@ -70,7 +70,7 @@
 
 ### Database
 
- - MongoDB connection
+ - PostgreSQL connection
 
  - Connection management
 
@@ -127,37 +127,106 @@ These settings apply globally to user login.
 ### .env
 
 ```
-MONGO_URI=mongodb://localhost:27017/
-MONGO_DB_NAME=<db_name>
+# PostgreSQL
+DB_HOST=localhost
+DB_PORT=5432
+DB_USER=postgres
+DB_PASSWORD=<db_password>
+DB_NAME=<db_name>
+DB_SSLMODE=disable
+DB_TIMEZONE=Asia/Kolkata
+
+# Server
 PORT=<serverport>
-JWT_SECRET=<secret_long_string>
-JWT_EXPIRY_HOURS=24
 GIN_MODE=debug
 # or release
-#ALLOWED_ORIGINS=http://localhost:<frontend-serverport>
+
+# Authentication
+JWT_SECRET=<secret_long_string>
+JWT_EXPIRY_HOURS=24
+
 AUTH_ACCESS_COOKIE=access_token
 AUTH_REFRESH_COOKIE=refresh_token
 
 REFRESH_TOKEN_EXPIRY_DAYS=30
 REFRESH_TOKEN_REVOKED_RETENTION_DAYS=7
 REFRESH_TOKEN_EXPIRED_RETENTION_DAYS=7
+
+# Cookies
 COOKIE_SECURE=false
 COOKIE_SAME_SITE=lax
+
+# CORS
+ALLOWED_ORIGINS=http://localhost:<frontend-serverport>
+
+# Two-factor authentication
 TOTP_ISSUER=Basic App
 TOTP_ENCRYPTION_KEY=<32-byte-secret>
+
+# Backup codes
 BACKUP_CODE_COUNT=10
 BACKUP_CODE_LOW_THRESHOLD=4
 
+#Seed
+SEED_ADMIN_FIRST_NAME=System
+SEED_ADMIN_LAST_NAME=Administrator
+SEED_ADMIN_USERNAME=admin
+SEED_ADMIN_EMAIL=admin@template.local
+SEED_ADMIN_PHONE=0000000000
+SEED_ADMIN_PASSWORD=change-this-password
+
 ```
 
 
+## Migrations
+
 ```
-Initial System Setup
+go run ./cmd/migrate up
+```
 
-1. Register the first user.
-2. Update the user's role in MongoDB to "admin".
-3. Log in again as admin.
-4. Make neccesasry changes in the code
+```
+go run ./cmd/migrate version
 
+```
+
+## Seed Account
+
+```
+go run ./cmd/seed
+```
+
+## Run air
+
+If air is setup correctly. Use the below command to run the application.
+
+```
+ENV=development air
+
+```
+
+## Getting Started
+
+Run the development server:
+
+```
+npm run dev
+
+```
+
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+
+
+### Other migration commands
+
+
+```
+go run ./cmd/migrate down
+```
+
+```
+go run ./cmd/migrate force <version>
+```
+```
+go run ./cmd/migrate force 1
 ```
 
