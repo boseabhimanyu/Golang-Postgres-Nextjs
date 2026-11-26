@@ -2,7 +2,9 @@ package postgres
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -124,6 +126,14 @@ func (r *UserRepository) Update(
 
 	user.UpdatedAt = time.Now().UTC()
 
+	backupCodesJSON, err := json.Marshal(user.BackupCodeHashes)
+	if err != nil {
+		return fmt.Errorf("marshal backup_code_hashes: %w", err)
+	}
+	if user.BackupCodeHashes == nil {
+		backupCodesJSON = []byte("[]")
+	}
+
 	updates := map[string]interface{}{
 		"first_name":    user.FirstName,
 		"last_name":     user.LastName,
@@ -142,7 +152,7 @@ func (r *UserRepository) Update(
 		"two_factor_enabled":        user.TwoFactorEnabled,
 		"two_factor_secret":         user.TwoFactorSecret,
 		"two_factor_pending_secret": user.TwoFactorPendingSecret,
-		"backup_code_hashes":        user.BackupCodeHashes,
+		"backup_code_hashes":        string(backupCodesJSON),
 
 		"updated_at": user.UpdatedAt,
 	}

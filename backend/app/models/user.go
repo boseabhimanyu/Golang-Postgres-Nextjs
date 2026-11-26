@@ -34,8 +34,8 @@ type User struct {
 	LastLoginAt *time.Time `gorm:"type:timestamptz" json:"lastLoginAt"`
 	DateOfBirth *time.Time `gorm:"type:date" json:"dateOfBirth"`
 
-	AddressLine1 string `gorm:"type:text" json:"addressLine1"`
-	AddressLine2 string `gorm:"type:text" json:"addressLine2"`
+	AddressLine1 string `gorm:"column:address_line_1;type:text" json:"addressLine1"`
+	AddressLine2 string `gorm:"column:address_line_2;type:text" json:"addressLine2"`
 	City         string `gorm:"type:varchar(255)" json:"city"`
 	State        string `gorm:"type:varchar(255)" json:"state"`
 	PinCode      string `gorm:"type:varchar(20)" json:"pinCode"`
