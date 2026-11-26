@@ -7,20 +7,20 @@ import (
 const ApplicationSettingsID = "application"
 
 type ApplicationSettings struct {
-	ID                    string               `bson:"_id" json:"-"`
-	RegistrationEnabled   bool                 `bson:"registration_enabled" json:"registrationEnabled"`
-	TwoFactorEnabled      bool                 `bson:"two_factor_enabled" json:"twoFactorEnabled"`
-	LoginWithPrimaryEmail bool                 `bson:"login_with_primary_email" json:"loginWithPrimaryEmail"`
-	LoginWithUsername     bool                 `bson:"login_with_username" json:"loginWithUsername"`
-	LoginWithPhone        bool                 `bson:"login_with_phone" json:"loginWithPhone"`
-	LoginWithAltEmail     bool                 `bson:"login_with_alt_email" json:"loginWithAltEmail"`
-	MenuMaxDepth          MenuMaxDepthSettings `bson:"menu_max_depth" json:"menuMaxDepth"`
-	UpdatedAt             time.Time            `bson:"updated_at" json:"-"`
-	UpdatedBy             string               `bson:"updated_by" json:"-"`
+	ID                    string               `gorm:"type:varchar(50);primaryKey" json:"-"`
+	RegistrationEnabled   bool                 `gorm:"default:true" json:"registrationEnabled"`
+	TwoFactorEnabled      bool                 `gorm:"default:false" json:"twoFactorEnabled"`
+	LoginWithPrimaryEmail bool                 `gorm:"default:true" json:"loginWithPrimaryEmail"`
+	LoginWithUsername     bool                 `gorm:"default:true" json:"loginWithUsername"`
+	LoginWithPhone        bool                 `gorm:"default:false" json:"loginWithPhone"`
+	LoginWithAltEmail     bool                 `gorm:"default:false" json:"loginWithAltEmail"`
+	MenuMaxDepth          MenuMaxDepthSettings `gorm:"type:jsonb;serializer:json" json:"menuMaxDepth"`
+	UpdatedAt             time.Time            `gorm:"type:timestamptz" json:"-"`
+	UpdatedBy             string               `gorm:"type:varchar(255)" json:"-"`
 }
 
 type MenuMaxDepthSettings struct {
-	Top    int `bson:"top" json:"top"`
-	Left   int `bson:"left" json:"left"`
-	Bottom int `bson:"bottom" json:"bottom"`
+	Top    int `json:"top"`
+	Left   int `json:"left"`
+	Bottom int `json:"bottom"`
 }

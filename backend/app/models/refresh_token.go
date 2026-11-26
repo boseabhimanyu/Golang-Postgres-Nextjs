@@ -3,16 +3,16 @@ package models
 import (
 	"time"
 
-	"go.mongodb.org/mongo-driver/v2/bson"
+	"github.com/google/uuid"
 )
 
 type RefreshToken struct {
-	ID        bson.ObjectID `bson:"_id" json:"id"`
-	UserID    bson.ObjectID `bson:"user_id" json:"userId"`
-	TokenHash string        `bson:"token_hash" json:"-"`
+	ID        uuid.UUID `gorm:"type:uuid;primaryKey" json:"id"`
+	UserID    uuid.UUID `gorm:"type:uuid;not null;index" json:"userId"`
+	TokenHash string    `gorm:"type:text;not null" json:"-"`
 
-	CreatedAt  time.Time  `bson:"created_at" json:"createdAt"`
-	LastUsedAt *time.Time `bson:"last_used_at" json:"lastUsedAt"`
-	ExpiresAt  time.Time  `bson:"expires_at" json:"expiresAt"`
-	RevokedAt  *time.Time `bson:"revoked_at" json:"revokedAt"`
+	CreatedAt  time.Time  `gorm:"type:timestamptz" json:"createdAt"`
+	LastUsedAt *time.Time `gorm:"type:timestamptz" json:"lastUsedAt"`
+	ExpiresAt  time.Time  `gorm:"type:timestamptz;index" json:"expiresAt"`
+	RevokedAt  *time.Time `gorm:"type:timestamptz;index" json:"revokedAt"`
 }

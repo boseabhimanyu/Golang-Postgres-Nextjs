@@ -52,7 +52,7 @@ type PublicPageResponse struct {
 
 func ToPublicPageResponse(page *models.Page) PublicPageResponse {
 	return PublicPageResponse{
-		ID:         page.ID.Hex(),
+		ID:         page.ID.String(),
 		Title:      page.Title,
 		Content:    page.Content,
 		Slug:       page.Slug,
@@ -80,10 +80,10 @@ type PageListItem struct {
 
 func ToPageListItem(page *models.Page) PageListItem {
 	return PageListItem{
-		ID:         page.ID.Hex(),
+		ID:         page.ID.String(),
 		Title:      page.Title,
 		Content:    page.Content,
-		AuthorID:   page.AuthorID.Hex(),
+		AuthorID:   page.AuthorID.String(),
 		Slug:       page.Slug,
 		Visibility: page.Visibility,
 		IsHomepage: page.IsHomepage,

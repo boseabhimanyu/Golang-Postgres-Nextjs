@@ -6,6 +6,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/joho/godotenv"
 )
@@ -19,11 +20,18 @@ var (
 )
 
 type Config struct {
-	MongoUri               string
-	MongoDB                string
-	ServerPort             string
-	JWTSecret              string
-	JWTExpiryHours         int
+	DBHostName string
+	DBPort     string
+	DBUser     string
+	DBPassword string
+	DBName     string
+	SSLMode    string
+	DBTimezone string
+
+	ServerPort     string
+	JWTSecret      string
+	JWTExpiryHours int
+
 	RefreshTokenExpiryDays int
 
 	AuthAccessCookie  string
@@ -53,12 +61,37 @@ func Load() (Config, error) {
 		}
 	}
 
-	mongoURI, err := extractEnv("MONGO_URI")
+	dbHostName, err := extractEnv("DB_HOST")
 	if err != nil {
 		return Config{}, err
 	}
 
-	mongoDB, err := extractEnv("MONGO_DB_NAME")
+	dbPort, err := extractEnv("DB_PORT")
+	if err != nil {
+		return Config{}, err
+	}
+
+	dbUser, err := extractEnv("DB_USER")
+	if err != nil {
+		return Config{}, err
+	}
+
+	dbPassword, err := extractEnv("DB_PASSWORD")
+	if err != nil {
+		return Config{}, err
+	}
+
+	dbName, err := extractEnv("DB_NAME")
+	if err != nil {
+		return Config{}, err
+	}
+
+	sslMode, err := extractEnv("DB_SSLMODE")
+	if err != nil {
+		return Config{}, err
+	}
+
+	dbTimezone, err := extractEnv("DB_TIMEZONE")
 	if err != nil {
 		return Config{}, err
 	}
@@ -278,24 +311,33 @@ func Load() (Config, error) {
 	}
 
 	config := Config{
-		MongoUri:                         mongoURI,
-		MongoDB:                          mongoDB,
-		ServerPort:                       port,
-		JWTSecret:                        jwtSecret,
-		JWTExpiryHours:                   jwtExpiryHours,
-		AuthAccessCookie:                 authAccessCookie,
-		AuthRefreshCookie:                authRefreshCookie,
-		RefreshTokenExpiryDays:           refreshTokenExpiryDays,
+		DBHostName: dbHostName,
+		DBPort:     dbPort,
+		DBUser:     dbUser,
+		DBPassword: dbPassword,
+		DBName:     dbName,
+		SSLMode:    sslMode,
+		DBTimezone: dbTimezone,
+
+		ServerPort:             port,
+		JWTSecret:              jwtSecret,
+		JWTExpiryHours:         jwtExpiryHours,
+		RefreshTokenExpiryDays: refreshTokenExpiryDays,
+
+		AuthAccessCookie:  authAccessCookie,
+		AuthRefreshCookie: authRefreshCookie,
+
 		CookieSecure:                     cookieSecure,
 		GinMode:                          ginMode,
 		RefreshTokenRevokedRetentionDays: refreshTokenRevokedRetentionDays,
 		RefreshTokenExpiredRetentionDays: refreshTokenExpiredRetentionDays,
-		CookieSameSite:                   cookieSameSite,
-		AllowedOrigins:                   allowedOrigins,
-		TOTPIssuer:                       tOTPIssuer,
-		TOTPEncryptionKey:                tOTPEncryptionKey,
-		BackupCodeCount:                  backupCodeCount,
-		BackupCodeLowThreshold:           backupCodeLowThreshold,
+
+		CookieSameSite:         cookieSameSite,
+		AllowedOrigins:         allowedOrigins,
+		TOTPIssuer:             tOTPIssuer,
+		TOTPEncryptionKey:      tOTPEncryptionKey,
+		BackupCodeCount:        backupCodeCount,
+		BackupCodeLowThreshold: backupCodeLowThreshold,
 	}
 
 	if err := config.Validate(); err != nil {
@@ -307,12 +349,36 @@ func Load() (Config, error) {
 
 // Validate validates the loaded configuration.
 func (c Config) Validate() error {
-	if c.MongoUri == "" {
-		return errors.New("mongo uri missing")
+	if c.DBHostName == "" {
+		return errors.New("database host missing")
 	}
 
-	if c.MongoDB == "" {
-		return errors.New("mongo database missing")
+	if c.DBPort == "" {
+		return errors.New("database port missing")
+	}
+
+	if c.DBUser == "" {
+		return errors.New("database user missing")
+	}
+
+	if c.DBPassword == "" {
+		return errors.New("database password missing")
+	}
+
+	if c.DBName == "" {
+		return errors.New("database name missing")
+	}
+
+	if c.SSLMode == "" {
+		return errors.New("database SSL mode missing")
+	}
+
+	if c.DBTimezone == "" {
+		return errors.New("database timezone missing")
+	}
+
+	if _, err := time.LoadLocation(c.DBTimezone); err != nil {
+		return fmt.Errorf("invalid database timezone: %w", err)
 	}
 
 	if c.ServerPort == "" {
@@ -420,7 +486,6 @@ func extractEnv(key string) (string, error) {
 
 // ValidateTOTPEncryptionKey validates the encryption secret
 // before 2FA is enabled or used.
-
 func (c Config) ValidateTOTPEncryptionKey() error {
 	key := strings.TrimSpace(c.TOTPEncryptionKey)
 

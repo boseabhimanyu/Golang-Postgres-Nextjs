@@ -3,7 +3,7 @@ package models
 import (
 	"time"
 
-	"go.mongodb.org/mongo-driver/v2/bson"
+	"github.com/google/uuid"
 )
 
 type MenuLocation string
@@ -23,22 +23,22 @@ const (
 )
 
 type Menu struct {
-	ID        bson.ObjectID `bson:"_id" json:"id"`
-	Name      string        `bson:"name" json:"name"`
-	Location  MenuLocation  `bson:"location" json:"location"`
-	Status    bool          `bson:"status" json:"status"`
-	Items     []MenuItem    `bson:"items" json:"items"`
-	CreatedAt time.Time     `bson:"created_at" json:"createdAt"`
-	UpdatedAt time.Time     `bson:"updated_at" json:"updatedAt"`
+	ID        uuid.UUID    `gorm:"type:uuid;primaryKey" json:"id"`
+	Name      string       `gorm:"type:varchar(255)" json:"name"`
+	Location  MenuLocation `gorm:"type:varchar(50)" json:"location"`
+	Status    bool         `gorm:"default:true" json:"status"`
+	Items     []MenuItem   `gorm:"type:jsonb;serializer:json" json:"items"`
+	CreatedAt time.Time    `gorm:"type:timestamptz" json:"createdAt"`
+	UpdatedAt time.Time    `gorm:"type:timestamptz" json:"updatedAt"`
 }
 
 type MenuItem struct {
-	ID            bson.ObjectID  `bson:"_id" json:"id"`
-	Label         string         `bson:"label" json:"label"`
-	Type          MenuItemType   `bson:"type" json:"type"`
-	PageID        *bson.ObjectID `bson:"page_id" json:"pageId"`
-	URL           string         `bson:"url" json:"url"`
-	Order         int            `bson:"order" json:"order"`
-	DisplayStatus bool           `bson:"display_status" json:"displayStatus"`
-	Children      []MenuItem     `bson:"children" json:"children"`
+	ID            uuid.UUID    `json:"id"`
+	Label         string       `json:"label"`
+	Type          MenuItemType `json:"type"`
+	PageID        *uuid.UUID   `json:"pageId"`
+	URL           string       `json:"url"`
+	Order         int          `json:"order"`
+	DisplayStatus bool         `json:"displayStatus"`
+	Children      []MenuItem   `json:"children"`
 }
