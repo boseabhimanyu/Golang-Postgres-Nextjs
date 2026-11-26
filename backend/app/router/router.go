@@ -3,24 +3,22 @@ package router
 import (
 	"basic-app/auth"
 	"basic-app/config"
-	"basic-app/middleware"
-
 	"basic-app/handler"
-	mongorepo "basic-app/repository/mongo"
+	"basic-app/middleware"
+	"basic-app/repository/postgres"
 	"basic-app/services"
+
 	"context"
-	"log"
 	"net/http"
 	"time"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
-	mongo "go.mongodb.org/mongo-driver/v2/mongo"
+	"gorm.io/gorm"
 )
 
 func NewRouter(
-	client *mongo.Client,
-	database *mongo.Database,
+	db *gorm.DB,
 	cfg config.Config,
 ) *gin.Engine {
 	r := gin.Default()
@@ -31,7 +29,6 @@ func NewRouter(
 
 	r.Use(cors.New(cors.Config{
 		AllowOrigins: cfg.AllowedOrigins,
-
 		AllowMethods: []string{
 			"GET",
 			"POST",
@@ -40,30 +37,22 @@ func NewRouter(
 			"DELETE",
 			"OPTIONS",
 		},
-
 		AllowHeaders: []string{
 			"Origin",
 			"Content-Type",
 			"Accept",
 			"Authorization",
-			"X-Request-ID", // Uncomment these when you want request ID
+			"X-Request-ID",
 		},
-
 		AllowCredentials: true,
 	}))
 
 	// -------------------------------------------------------------
-	// Security Headers (Runs 2nd, right after CORS)
+	// Security and custom middleware
 	// -------------------------------------------------------------
-	// Development: set ENV=development to disable HTTPS redirection.
-	// Production: configure HTTPS before enabling SSLRedirect and HSTS.
 
-	r.Use(middleware.SecurityMiddleware()) //uncomment to enable security module
-	// run ENV=development air for development environment
-	// run ENV=production air for production environment
+	r.Use(middleware.SecurityMiddleware())
 
-	// Custom middleware.
-	// Uncomment these when you want request ID and structured logging.
 	r.Use(
 		gin.Recovery(),
 		middleware.RequestID(),
@@ -72,16 +61,21 @@ func NewRouter(
 
 	r.Static("/Uploads", "./Uploads")
 
-	// ------------------------------------------------------------------
+	// -------------------------------------------------------------
 	// Dependencies
-	// ------------------------------------------------------------------
+	// -------------------------------------------------------------
 
-	userRepository := mongorepo.NewUserRepository(database)
+	userRepository := postgres.NewUserRepository(db)
 
-	settingsRepository := mongorepo.NewApplicationSettingsRepository(database)
-	settingsService := services.NewSettingsService(settingsRepository, cfg)
+	settingsRepository := postgres.NewApplicationSettingsRepository(db)
+	settingsService := services.NewSettingsService(
+		settingsRepository,
+		cfg,
+	)
+
 	totpService := services.NewTOTPService(cfg.TOTPIssuer)
-	refreshTokenRepository := mongorepo.NewRefreshTokenRepository(database)
+
+	refreshTokenRepository := postgres.NewRefreshTokenRepository(db)
 
 	authService := services.NewAuthService(
 		userRepository,
@@ -91,21 +85,9 @@ func NewRouter(
 		cfg,
 	)
 
-	// Initialize application settings.
-	settingsCtx, cancel := context.WithTimeout(
-		context.Background(),
-		10*time.Second,
-	)
-	defer cancel()
-
-	if err := settingsRepository.EnsureDefaults(settingsCtx); err != nil {
-		log.Printf("failed to initialize application settings: %v", err)
-		panic(err)
-	}
-
-	// ------------------------------------------------------------------
+	// -------------------------------------------------------------
 	// Refresh token callback
-	// ------------------------------------------------------------------
+	// -------------------------------------------------------------
 
 	refreshToken := func(
 		ctx context.Context,
@@ -122,9 +104,9 @@ func NewRouter(
 			nil
 	}
 
-	// ------------------------------------------------------------------
+	// -------------------------------------------------------------
 	// Authentication middleware
-	// ------------------------------------------------------------------
+	// -------------------------------------------------------------
 
 	authMiddleware := auth.AuthMiddleware(
 		cfg.JWTSecret,
@@ -146,41 +128,49 @@ func NewRouter(
 		refreshToken,
 	)
 
-	// ------------------------------------------------------------------
-	// Services / handlers
-	// ------------------------------------------------------------------
+	// -------------------------------------------------------------
+	// Services and handlers
+	// -------------------------------------------------------------
 
-	userService := services.NewUserService(userRepository, totpService, cfg)
-	authHandler := handler.NewAuthHandler(authService, userService, cfg)
+	userService := services.NewUserService(
+		userRepository,
+		totpService,
+		cfg,
+	)
+
+	authHandler := handler.NewAuthHandler(
+		authService,
+		userService,
+		cfg,
+	)
+
 	userHandler := handler.NewUserHandler(userService)
 
-	pageRepository := mongorepo.NewPageRepository(database)
-	menuRepository := mongorepo.NewMenuRepository(database)
+	pageRepository := postgres.NewPageRepository(db)
+	menuRepository := postgres.NewMenuRepository(db)
+
 	menuService := services.NewMenuService(
 		menuRepository,
 		pageRepository,
 		settingsService,
 	)
+
 	pageService := services.NewPageService(pageRepository)
+
 	pageHandler := handler.NewPageHandler(pageService)
 	menuHandler := handler.NewMenuHandler(menuService)
 	settingsHandler := handler.NewSettingsHandler(settingsService)
 
-	// ------------------------------------------------------------------
-	// Health / readiness
-	// ------------------------------------------------------------------
+	// -------------------------------------------------------------
+	// Health and readiness
+	// -------------------------------------------------------------
 
-	// Liveness:
-	// Only confirms that the application process is running.
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
 			"ok":     true,
 			"status": "application is up",
 		})
 	})
-
-	// Readiness:
-	// Confirms that the application can currently reach MongoDB.
 
 	r.GET("/ready", func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(
@@ -189,7 +179,15 @@ func NewRouter(
 		)
 		defer cancel()
 
-		if err := client.Ping(ctx, nil); err != nil {
+		sqlDB, err := db.DB()
+		if err != nil {
+			c.JSON(http.StatusServiceUnavailable, gin.H{
+				"status": "database unavailable",
+			})
+			return
+		}
+
+		if err := sqlDB.PingContext(ctx); err != nil {
 			c.JSON(http.StatusServiceUnavailable, gin.H{
 				"status": "not_ready",
 			})
@@ -201,35 +199,17 @@ func NewRouter(
 		})
 	})
 
-	// ------------------------------------------------------------------
+	// -------------------------------------------------------------
 	// Authentication routes
-	// ------------------------------------------------------------------
+	// -------------------------------------------------------------
 
 	authRoutes := r.Group("/api/v1/auth")
 	{
-		// Rate limiter config
+		loginLimiter := middleware.NewRateLimiter(5, time.Minute)
+		registerLimiter := middleware.NewRateLimiter(5, time.Minute)
+		refreshLimiter := middleware.NewRateLimiter(10, time.Minute)
+		twoFactorLimiter := middleware.NewRateLimiter(5, time.Minute)
 
-		loginLimiter := middleware.NewRateLimiter(
-			5,
-			time.Minute,
-		)
-
-		registerLimiter := middleware.NewRateLimiter(
-			5,
-			time.Minute,
-		)
-
-		refreshLimiter := middleware.NewRateLimiter(
-			10,
-			time.Minute,
-		)
-
-		twoFactorLimiter := middleware.NewRateLimiter(
-			5,
-			time.Minute,
-		)
-
-		// Public
 		authRoutes.POST(
 			"/register",
 			registerLimiter.Middleware(middleware.RateLimitKeyByIP),
@@ -254,7 +234,6 @@ func NewRouter(
 			authHandler.VerifyTwoFactorLogin,
 		)
 
-		// Authenticated
 		protected := authRoutes.Group("")
 		protected.Use(authMiddleware)
 
@@ -264,7 +243,6 @@ func NewRouter(
 		protected.PATCH("/me/image", userHandler.UpdateProfilePic)
 		protected.GET("/me", userHandler.Me)
 
-		// 2FA setup
 		protected.POST(
 			"/2fa/setup",
 			twoFactorLimiter.Middleware(middleware.RateLimitKeyByUserID),
@@ -290,45 +268,27 @@ func NewRouter(
 		)
 	}
 
-	// ------------------------------------------------------------------
+	// -------------------------------------------------------------
 	// Customer routes
-	// ------------------------------------------------------------------
+	// -------------------------------------------------------------
 
 	adminRoutes := r.Group("/api/v1/customers")
-
 	adminRoutes.Use(
 		authMiddleware,
 		auth.RequireRoles("admin"),
 	)
 
 	adminRoutes.POST("", userHandler.CreateCustomer)
-	//--------------------------------------------------------------
 	adminRoutes.GET("", userHandler.ListCustomers)
-	// List customers.
-	//
-	// Pagination:
-	// GET /api/v1/customers?page=1&limit=20
-	//
-	// Filter by account status:
-	// GET /api/v1/customers?status=true
-	// GET /api/v1/customers?status=false
-	//
-	// Search across first name, last name, username, email,
-	// alternate email, and phone:
-	// GET /api/v1/customers?search=rahul
-	//
-	// Filters can be combined:
-	// GET /api/v1/customers?page=1&limit=20&status=true&search=rahul
-
-	//--------------------------------------------------------------
 	adminRoutes.GET("/:id", userHandler.GetCustomerByID)
 	adminRoutes.PATCH("/:id", userHandler.UpdateCustomer)
 	adminRoutes.PATCH("/:id/status", userHandler.UpdateUserStatus)
 	adminRoutes.PATCH("/:id/password", userHandler.ChangeUserPassword)
 	adminRoutes.POST("/:id/2fa/reset", authHandler.AdminResetTwoFactor)
-	// ------------------------------------------------------------------
+
+	// -------------------------------------------------------------
 	// Application settings
-	// ------------------------------------------------------------------
+	// -------------------------------------------------------------
 
 	r.GET("/api/v1/settings", settingsHandler.GetPublicSettings)
 
@@ -337,30 +297,30 @@ func NewRouter(
 		authMiddleware,
 		auth.RequireRoles("admin"),
 	)
+
 	protectedSettings.PATCH("", settingsHandler.Update)
 	protectedSettings.GET("", settingsHandler.GetPrivateSettings)
 
-	// ------------------------------------------------------------------
+	// -------------------------------------------------------------
 	// Pages
-	// ------------------------------------------------------------------
+	// -------------------------------------------------------------
 
 	api := r.Group("/api/v1")
 
-	// Public / registered pages
 	api.GET(
 		"/pages/:slug",
 		optionalAuthMiddleware,
 		pageHandler.GetBySlug,
 	)
+
 	api.GET("/pages/homepage", pageHandler.GetHomepage)
-	// Admin pages
+
 	admin := api.Group("/admin")
 	admin.Use(
 		authMiddleware,
 		auth.RequireRoles("admin"),
 	)
 
-	// Admin pages
 	admin.POST("/pages", pageHandler.Create)
 	admin.GET("/pages", pageHandler.List)
 	admin.GET("/pages/:id", pageHandler.GetByID)
@@ -368,11 +328,12 @@ func NewRouter(
 	admin.DELETE("/pages/:id", pageHandler.Delete)
 	admin.PATCH("/pages/:id/homepage", pageHandler.UpdateHomepage)
 
-	// Public menus
-	// api.GET("/menus/:location", menuHandler.GetPublicByLocation)
+	// -------------------------------------------------------------
+	// Menus
+	// -------------------------------------------------------------
+
 	api.GET("/menus", menuHandler.GetAllPublic)
 
-	// Admin menus
 	menus := admin.Group("/menus")
 	menus.POST("", menuHandler.Create)
 	menus.GET("", menuHandler.List)
@@ -380,7 +341,6 @@ func NewRouter(
 	menus.PATCH("/:id", menuHandler.Update)
 	menus.DELETE("/:id", menuHandler.Delete)
 
-	// Menu items
 	menus.POST("/:id/items", menuHandler.AddItem)
 	menus.PATCH("/:id/items/:itemId", menuHandler.UpdateItem)
 	menus.DELETE("/:id/items/:itemId", menuHandler.DeleteItem)

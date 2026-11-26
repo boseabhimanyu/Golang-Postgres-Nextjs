@@ -40,12 +40,6 @@ type UserRepository interface {
 		passwordHash string,
 	) error
 
-	UpdateRefreshToken(
-		ctx context.Context,
-		userID string,
-		refreshTokenHash string,
-	) error
-
 	UserStatus(
 		ctx context.Context, userID string, status bool) error
 

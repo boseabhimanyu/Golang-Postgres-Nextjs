@@ -4,9 +4,10 @@ import (
 	"basic-app/config"
 	"basic-app/database"
 	"basic-app/repository"
-	mongorepo "basic-app/repository/mongo"
+	"basic-app/repository/postgres"
 	"basic-app/router"
 	"basic-app/services"
+
 	"context"
 	"log"
 	"net/http"
@@ -25,39 +26,57 @@ func main() {
 		return
 	}
 
-	client, db, err := database.Connect(cfg)
+	db, err := database.Connect(cfg)
 	if err != nil {
 		log.Printf("DB Error: %v", err)
 		return
 	}
 
+	sqlDB, err := db.DB()
+	if err != nil {
+		log.Printf("Failed to get SQL connection: %v", err)
+		return
+	}
+
 	defer func() {
-		if err := database.Disconnect(client); err != nil {
-			log.Printf("mongo disconnect error: %v", err)
+		if err := sqlDB.Close(); err != nil {
+			log.Printf("PostgreSQL disconnect error: %v", err)
 		}
 	}()
 
-	// Ensure MongoDB indexes exist
-	indexCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+	// Initialize repositories
+	refreshTokenRepository := postgres.NewRefreshTokenRepository(db)
 
-	if err := mongorepo.EnsureUserIndexes(indexCtx, db); err != nil {
-		log.Printf("Failed to create user indexes: %v", err)
+	settingsRepository := postgres.NewApplicationSettingsRepository(db)
+
+	settingsService := services.NewSettingsService(
+		settingsRepository,
+		cfg,
+	)
+
+	// Ensure application settings exist
+	settingsCtx, settingsCancel := context.WithTimeout(
+		context.Background(),
+		10*time.Second,
+	)
+	defer settingsCancel()
+
+	if err := settingsRepository.EnsureDefaults(settingsCtx); err != nil {
+		log.Printf("Failed to ensure application settings: %v", err)
 		return
 	}
 
-	if err := mongorepo.EnsureRefreshTokenIndexes(indexCtx, db); err != nil {
-		log.Printf("Failed to create refresh token indexes: %v", err)
+	if err := settingsService.ValidateTwoFactorStartupConfig(
+		settingsCtx,
+	); err != nil {
+		log.Printf("Two-factor startup validation failed: %v", err)
 		return
 	}
 
-	if err := mongorepo.EnsurePageIndexes(indexCtx, db); err != nil {
-		log.Printf("Failed to create page indexes: %v", err)
-	}
-
-	refreshTokenRepository := mongorepo.NewRefreshTokenRepository(db)
-
-	cleanupCtx, cleanupCancel := context.WithCancel(context.Background())
+	// Refresh token cleanup
+	cleanupCtx, cleanupCancel := context.WithCancel(
+		context.Background(),
+	)
 	defer cleanupCancel()
 
 	log.Printf(
@@ -77,37 +96,9 @@ func main() {
 		cfg.RefreshTokenExpiredRetentionDays,
 	)
 
-	settingsRepository := mongorepo.NewApplicationSettingsRepository(db)
-
-	settingsService := services.NewSettingsService(
-		settingsRepository,
-		cfg,
-	)
-
-	settingsCtx, settingsCancel := context.WithTimeout(
-		context.Background(),
-		10*time.Second,
-	)
-	defer settingsCancel()
-
-	if err := settingsRepository.EnsureDefaults(settingsCtx); err != nil {
-		log.Printf("Failed to ensure application settings: %v", err)
-		return
-	}
-
-	if err := settingsService.ValidateTwoFactorStartupConfig(
-		settingsCtx,
-	); err != nil {
-		log.Printf(
-			"Two-factor startup validation failed: %v",
-			err,
-		)
-		return
-	}
-
 	gin.SetMode(cfg.GinMode)
 
-	engine := router.NewRouter(client, db, cfg)
+	engine := router.NewRouter(db, cfg)
 
 	addr := ":" + cfg.ServerPort
 
@@ -117,7 +108,6 @@ func main() {
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
-	// Start HTTP server
 	go func() {
 		log.Printf("Server listening on http://localhost%s", addr)
 
@@ -127,7 +117,6 @@ func main() {
 		}
 	}()
 
-	// Wait for shutdown signal
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
 
@@ -135,7 +124,6 @@ func main() {
 
 	log.Println("Shutdown signal received")
 
-	// Allow active requests to complete
 	shutdownCtx, shutdownCancel := context.WithTimeout(
 		context.Background(),
 		10*time.Second,
@@ -160,36 +148,40 @@ func startRefreshTokenCleanup(
 
 	cleanup := func() {
 		now := time.Now().UTC()
-		revokedBefore := now.AddDate(0, 0, -revokedRetentionDays)
-		expiredBefore := now.AddDate(0, 0, -expiredRetentionDays)
 
-		cleanupCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+		revokedBefore := now.AddDate(
+			0, 0, -revokedRetentionDays,
+		)
+
+		expiredBefore := now.AddDate(
+			0, 0, -expiredRetentionDays,
+		)
+
+		cleanupCtx, cancel := context.WithTimeout(
+			ctx,
+			30*time.Second,
+		)
 		defer cancel()
 
-		// 1. Delete revoked tokens
-		if err := repo.DeleteRevokedBefore(cleanupCtx, revokedBefore); err != nil {
+		if err := repo.DeleteRevokedBefore(
+			cleanupCtx,
+			revokedBefore,
+		); err != nil {
 			log.Printf("Revoked token cleanup failed: %v", err)
 			return
 		}
 
-		log.Printf(
-			"Refresh token cleanup completed; removed revoked tokens older than %d days",
-			revokedRetentionDays,
-		)
-
-		// 2. Delete expired tokens
-		if err := repo.DeleteExpiredBefore(cleanupCtx, expiredBefore); err != nil {
+		if err := repo.DeleteExpiredBefore(
+			cleanupCtx,
+			expiredBefore,
+		); err != nil {
 			log.Printf("Expired token cleanup failed: %v", err)
 			return
 		}
 
-		log.Printf(
-			"Refresh token cleanup completed; removed expired tokens older than %d days",
-			expiredRetentionDays,
-		)
+		log.Println("Refresh token cleanup completed")
 	}
 
-	// Run once when the application starts.
 	cleanup()
 
 	for {
