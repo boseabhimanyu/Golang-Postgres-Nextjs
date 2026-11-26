@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"time"
 
@@ -124,6 +125,11 @@ func (r *MenuRepository) Update(
 		return apperrors.ErrMenuNotFound
 	}
 
+	itemsJSON, err := json.Marshal(menu.Items)
+	if err != nil {
+		return err
+	}
+
 	menu.UpdatedAt = time.Now().UTC()
 
 	result := r.db.WithContext(ctx).
@@ -133,7 +139,7 @@ func (r *MenuRepository) Update(
 			"name":       menu.Name,
 			"location":   menu.Location,
 			"status":     menu.Status,
-			"items":      menu.Items,
+			"items":      itemsJSON,
 			"updated_at": menu.UpdatedAt,
 		})
 

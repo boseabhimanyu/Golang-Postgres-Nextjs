@@ -344,7 +344,7 @@ func (s *UserService) UpdateProfilePic(
 		return err
 	}
 
-	// Update MongoDB with the new image path.
+	// Update PostgreSQL with the new image path.
 	if err := s.userRepository.UpdateProfilePic(
 		ctx,
 		userID,

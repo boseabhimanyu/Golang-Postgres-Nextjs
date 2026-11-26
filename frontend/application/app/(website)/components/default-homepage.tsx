@@ -113,7 +113,7 @@ export default async function DefaultHomepage() {
           </h1>
 
           <p className="mt-5 max-w-2xl text-base leading-7 text-gray-300">
-            A modern application starter built with Go, Gin, MongoDB,
+            A modern application starter built with Go, Gin, PostgreSQL,
             and Next.js. Manage customers, navigation menus, pages,
             and application settings from one place.
           </p>
@@ -146,7 +146,7 @@ export default async function DefaultHomepage() {
                 color: "text-cyan-700",
               },
               {
-                name: "MongoDB",
+                name: "PostgreSQL",
                 detail: "Database",
                 color: "text-green-700",
               },

@@ -29,7 +29,7 @@ Instead of writing CSS to local disk files (which get overwritten on deployment 
 Add a column or document field to your existing site configuration/settings table:
 
 * **SQL (PostgreSQL / MySQL):** `custom_css TEXT` (or `LONGTEXT`)
-* **MongoDB / NoSQL:** `custom_css: { type: String, default: "" }`
+* **PostgreSQL / NoSQL:** `custom_css: { type: String, default: "" }`
 
 ---
 

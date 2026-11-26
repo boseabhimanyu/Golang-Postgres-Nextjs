@@ -48,7 +48,7 @@
             "header": [],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"identifier\": \"johnf\",\n  \"password\": \"Password@123\"\n}",
+              "raw": "{\n  \"identifier\": \"priyap\",\n  \"password\": \"Cat@1234\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -763,7 +763,7 @@
                   }
                 },
                 "url": {
-                  "raw": "http://localhost:{{port}}/api/v1/admin/pages",
+                  "raw": "http://localhost:{{port}}/api/v1/admin/pages?search=burst",
                   "protocol": "http",
                   "host": [
                     "localhost"
@@ -774,6 +774,12 @@
                     "v1",
                     "admin",
                     "pages"
+                  ],
+                  "query": [
+                    {
+                      "key": "search",
+                      "value": "burst"
+                    }
                   ]
                 }
               },
@@ -797,7 +803,7 @@
                   }
                 },
                 "url": {
-                  "raw": "http://localhost:{{port}}/api/v1/admin/pages/6acb977185bb7c292f8d7592",
+                  "raw": "http://localhost:{{port}}/api/v1/admin/pages/6aed6065be82fab06e9388fd",
                   "protocol": "http",
                   "host": [
                     "localhost"
@@ -808,7 +814,7 @@
                     "v1",
                     "admin",
                     "pages",
-                    "6acb977185bb7c292f8d7592"
+                    "6aed6065be82fab06e9388fd"
                   ]
                 }
               },
@@ -885,7 +891,7 @@
                 "header": [],
                 "body": {
                   "mode": "raw",
-                  "raw": "",
+                  "raw": "{\n    \"isHomepage\": true\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -893,7 +899,7 @@
                   }
                 },
                 "url": {
-                  "raw": "http://localhost:{{port}}/api/v1/admin/pages/6aba5b674b9982e2f951c103/homepage",
+                  "raw": "http://localhost:{{port}}/api/v1/admin/pages/6acb4c2eb71b8e6015722362/homepage",
                   "protocol": "http",
                   "host": [
                     "localhost"
@@ -904,7 +910,7 @@
                     "v1",
                     "admin",
                     "pages",
-                    "6aba5b674b9982e2f951c103",
+                    "6acb4c2eb71b8e6015722362",
                     "homepage"
                   ]
                 }
@@ -1388,35 +1394,6 @@
                 "v1",
                 "pages",
                 "homepage"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Get menu by location",
-          "protocolProfileBehavior": {
-            "disableBodyPruning": true
-          },
-          "request": {
-            "method": "GET",
-            "header": [],
-            "body": {
-              "mode": "raw",
-              "raw": "// {\n//   \"title\": \"About Us\",\n//   \"content\": \"About Us page\",\n//   \"visibility\" : \"public\"/\"registered\"\n// }\n\nhttp://localhost:{{port}}/api/v1/menus/bottom\nhttp://localhost:{{port}}/api/v1/menus/top\nhttp://localhost:{{port}}/api/v1/menus/left"
-            },
-            "url": {
-              "raw": "http://localhost:{{port}}/api/v1/menus/left",
-              "protocol": "http",
-              "host": [
-                "localhost"
-              ],
-              "port": "{{port}}",
-              "path": [
-                "api",
-                "v1",
-                "menus",
-                "left"
               ]
             }
           },

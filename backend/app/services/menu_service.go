@@ -59,11 +59,11 @@ func (s *MenuService) Create(
 	now := time.Now()
 
 	menu := &models.Menu{
-		ID:       uuid.New(),
-		Name:     name,
-		Location: req.Location,
-		Status:   req.Status,
-		// Items:     make([]models.MenuItem, 0),
+		ID:        uuid.New(),
+		Name:      name,
+		Location:  req.Location,
+		Status:    req.Status,
+		Items:     make([]models.MenuItem, 0),
 		CreatedAt: now,
 		UpdatedAt: now,
 	}

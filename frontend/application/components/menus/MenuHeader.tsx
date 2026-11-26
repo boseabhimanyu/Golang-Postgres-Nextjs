@@ -39,7 +39,7 @@ export default function MenuHeader({ menu }: { menu: Menu }) {
   return (
     <header className="glass-header">
       <Link href="/" className="brand">
-        Go Mongo NextJs
+        Go PostgreSQL NextJs
       </Link>
 
       <button
