@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"go.mongodb.org/mongo-driver/v2/bson"
+	"github.com/google/uuid"
 )
 
 type MenuService struct {
@@ -59,7 +59,7 @@ func (s *MenuService) Create(
 	now := time.Now()
 
 	menu := &models.Menu{
-		ID:       bson.NewObjectID(),
+		ID:       uuid.New(),
 		Name:     name,
 		Location: req.Location,
 		Status:   req.Status,
@@ -223,7 +223,7 @@ func (s *MenuService) buildPublicMenuItems(
 		}
 
 		response := dto.PublicMenuItemResponse{
-			ID:            item.ID.Hex(),
+			ID:            item.ID.String(),
 			Label:         item.Label,
 			Type:          item.Type,
 			PageID:        nil,
@@ -243,12 +243,12 @@ func (s *MenuService) buildPublicMenuItems(
 				return nil, apperrors.ErrInvalidMenuItem
 			}
 
-			page, ok := pagesByID[item.PageID.Hex()]
+			page, ok := pagesByID[item.PageID.String()]
 			if !ok {
 				return nil, apperrors.ErrPageNotFound
 			}
 
-			pageID := item.PageID.Hex()
+			pageID := item.PageID.String()
 
 			response.PageID = &pageID
 
@@ -266,12 +266,12 @@ func (s *MenuService) buildPublicMenuItems(
 			// A group may link to a page, a URL,
 			// or have no destination.
 			if item.PageID != nil {
-				page, ok := pagesByID[item.PageID.Hex()]
+				page, ok := pagesByID[item.PageID.String()]
 				if !ok {
 					return nil, apperrors.ErrPageNotFound
 				}
 
-				pageID := item.PageID.Hex()
+				pageID := item.PageID.String()
 				response.PageID = &pageID
 				response.URL = "/pages/" + page.Slug
 			}
@@ -367,7 +367,7 @@ func (s *MenuService) AddItem(
 	}
 
 	item := models.MenuItem{
-		ID:            bson.NewObjectID(),
+		ID:            uuid.New(),
 		Label:         label,
 		Type:          req.Type,
 		URL:           strings.TrimSpace(req.URL),
@@ -391,7 +391,7 @@ func (s *MenuService) AddItem(
 
 		pageID := strings.TrimSpace(*req.PageID)
 
-		objectID, err := bson.ObjectIDFromHex(pageID)
+		parsedID, err := uuid.Parse(pageID)
 		if err != nil {
 			return nil, apperrors.ErrInvalidMenuItem
 		}
@@ -404,7 +404,7 @@ func (s *MenuService) AddItem(
 			return nil, err
 		}
 
-		item.PageID = &objectID
+		item.PageID = &parsedID
 
 	case models.MenuItemTypeURL:
 		if item.URL == "" || req.PageID != nil {
@@ -422,7 +422,12 @@ func (s *MenuService) AddItem(
 		if req.PageID != nil && strings.TrimSpace(*req.PageID) != "" {
 			pageID := strings.TrimSpace(*req.PageID)
 
-			_, err := s.pageRepository.FindByID(ctx, pageID)
+			parsedID, err := uuid.Parse(pageID)
+			if err != nil {
+				return nil, apperrors.ErrInvalidMenuItem
+			}
+
+			_, err = s.pageRepository.FindByID(ctx, pageID)
 			if err != nil {
 				if errors.Is(err, apperrors.ErrPageNotFound) {
 					return nil, apperrors.ErrPageNotFound
@@ -430,12 +435,7 @@ func (s *MenuService) AddItem(
 				return nil, err
 			}
 
-			objectID, err := bson.ObjectIDFromHex(pageID)
-			if err != nil {
-				return nil, apperrors.ErrInvalidMenuItem
-			}
-
-			item.PageID = &objectID
+			item.PageID = &parsedID
 		}
 	}
 	// Get configured maximum depth.
@@ -474,16 +474,17 @@ func (s *MenuService) AddItem(
 	} else {
 		parentID := strings.TrimSpace(*req.ParentID)
 
-		parentObjectID, err := bson.ObjectIDFromHex(parentID)
+		parentUUID, err := uuid.Parse(parentID)
 		if err != nil {
 			return nil, apperrors.ErrMenuItemNotFound
 		}
 
 		location, err := findMenuItemLocation(
 			&menu.Items,
-			parentObjectID,
+			parentUUID,
 			1,
 		)
+
 		if err != nil {
 			if errors.Is(err, apperrors.ErrMenuItemNotFound) {
 				return nil, apperrors.ErrMenuItemNotFound
@@ -562,14 +563,14 @@ func (s *MenuService) UpdateItem(
 		return nil, err
 	}
 
-	itemObjectID, err := bson.ObjectIDFromHex(itemID)
+	itemUUID, err := uuid.Parse(itemID)
 	if err != nil {
 		return nil, apperrors.ErrMenuItemNotFound
 	}
 
 	location, err := findMenuItemLocation(
 		&menu.Items,
-		itemObjectID,
+		itemUUID,
 		1,
 	)
 	if err != nil {
@@ -667,7 +668,7 @@ func (s *MenuService) UpdateItem(
 				return nil, apperrors.ErrInvalidMenuItem
 			}
 
-			objectID, err := bson.ObjectIDFromHex(pageID)
+			parsedID, err := uuid.Parse(pageID)
 			if err != nil {
 				return nil, apperrors.ErrInvalidMenuItem
 			}
@@ -681,7 +682,7 @@ func (s *MenuService) UpdateItem(
 				return nil, err
 			}
 
-			item.PageID = &objectID
+			item.PageID = &parsedID
 		}
 	}
 
@@ -790,14 +791,14 @@ func (s *MenuService) DeleteItem(
 		return err
 	}
 
-	itemObjectID, err := bson.ObjectIDFromHex(itemID)
+	itemUUID, err := uuid.Parse(itemID)
 	if err != nil {
 		return apperrors.ErrMenuItemNotFound
 	}
 
 	location, err := findMenuItemLocation(
 		&menu.Items,
-		itemObjectID,
+		itemUUID,
 		1,
 	)
 	if err != nil {
@@ -861,14 +862,14 @@ func (s *MenuService) MoveItem(
 		return nil, err
 	}
 
-	itemObjectID, err := bson.ObjectIDFromHex(itemID)
+	itemUUID, err := uuid.Parse(itemID)
 	if err != nil {
 		return nil, apperrors.ErrMenuItemNotFound
 	}
 
 	location, err := findMenuItemLocation(
 		&menu.Items,
-		itemObjectID,
+		itemUUID,
 		1,
 	)
 	if err != nil {
@@ -929,7 +930,7 @@ type menuItemLocation struct {
 
 func findMenuItemLocation(
 	items *[]models.MenuItem,
-	id bson.ObjectID,
+	id uuid.UUID,
 	depth int,
 ) (*menuItemLocation, error) {
 	for i := range *items {
@@ -990,7 +991,7 @@ func collectMenuPageIDs(
 ) {
 	for _, item := range items {
 		if item.PageID != nil {
-			pageIDs[item.PageID.Hex()] = struct{}{}
+			pageIDs[item.PageID.String()] = struct{}{}
 		}
 
 		if len(item.Children) > 0 {

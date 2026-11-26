@@ -198,7 +198,7 @@ func (s *PageService) Update(
 			slug, err = s.generateUniqueSlug(
 				ctx,
 				slug,
-				page.ID.Hex(),
+				page.ID.String(),
 			)
 			if err != nil {
 				return nil, err
@@ -216,7 +216,7 @@ func (s *PageService) Update(
 					return nil, err
 				}
 			} else {
-				if existingPage.ID.Hex() != page.ID.Hex() {
+				if existingPage.ID.String() != page.ID.String() {
 					return nil, apperrors.ErrSlugAlreadyExists
 				}
 			}
@@ -288,7 +288,7 @@ func (s *PageService) generateUniqueSlug(
 			return "", err
 		}
 
-		if excludeID != "" && page.ID.Hex() == excludeID {
+		if excludeID != "" && page.ID.String() == excludeID {
 			return slug, nil
 		}
 

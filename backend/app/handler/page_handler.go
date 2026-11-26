@@ -5,13 +5,14 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/google/uuid"
+
 	"basic-app/apperrors"
 	"basic-app/dto"
 	"basic-app/models"
 	"basic-app/services"
 
 	"github.com/gin-gonic/gin"
-	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
 type PageHandler struct {
@@ -45,7 +46,7 @@ func (h *PageHandler) Create(c *gin.Context) {
 		return
 	}
 
-	authorID, err := bson.ObjectIDFromHex(userID)
+	authorID, err := uuid.Parse(userID)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"error": "unauthorized",

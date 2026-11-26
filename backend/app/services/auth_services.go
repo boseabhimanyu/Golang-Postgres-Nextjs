@@ -302,7 +302,7 @@ func (s *AuthService) Login(
 
 	if twoFactorEnabled && user.TwoFactorEnabled {
 		challengeToken, err := auth.GenerateTwoFactorChallenge(
-			user.ID.Hex(),
+			user.ID.String(),
 			s.config.JWTSecret,
 			5,
 		)
@@ -320,7 +320,7 @@ func (s *AuthService) Login(
 	}
 
 	accessToken, err := auth.GenerateToken(
-		user.ID.Hex(),
+		user.ID.String(),
 		string(user.Role),
 		s.config.JWTSecret,
 		s.config.JWTExpiryHours,
@@ -330,7 +330,7 @@ func (s *AuthService) Login(
 	}
 
 	refreshToken, refreshExpiry, err := auth.GenerateRefreshToken(
-		user.ID.Hex(),
+		user.ID.String(),
 		s.config.JWTSecret,
 		s.config.RefreshTokenExpiryDays,
 	)
@@ -352,7 +352,7 @@ func (s *AuthService) Login(
 
 	if err := s.userRepository.UpdateLastLoginAt(
 		ctx,
-		user.ID.Hex(),
+		user.ID.String(),
 		now,
 	); err != nil {
 		return nil, err
@@ -393,7 +393,7 @@ func (s *AuthService) RefreshToken(ctx context.Context, refreshToken string) (*d
 	}
 
 	accessToken, err := auth.GenerateToken(
-		user.ID.Hex(),
+		user.ID.String(),
 		string(user.Role),
 		s.config.JWTSecret,
 		s.config.JWTExpiryHours,
@@ -402,7 +402,7 @@ func (s *AuthService) RefreshToken(ctx context.Context, refreshToken string) (*d
 		return nil, err
 	}
 
-	if err := s.refreshTokenRepository.Touch(ctx, storedToken.ID.Hex()); err != nil {
+	if err := s.refreshTokenRepository.Touch(ctx, storedToken.ID.String()); err != nil {
 		return nil, err
 	}
 
@@ -431,7 +431,7 @@ func (s *AuthService) Logout(ctx context.Context, refreshToken string) error {
 		return apperrors.ErrInvalidRefreshToken
 	}
 
-	return s.refreshTokenRepository.Revoke(ctx, storedToken.ID.Hex())
+	return s.refreshTokenRepository.Revoke(ctx, storedToken.ID.String())
 }
 
 func (s *AuthService) VerifyTwoFactorLogin(
@@ -506,7 +506,7 @@ func (s *AuthService) VerifyTwoFactorLogin(
 	}
 
 	accessToken, err := auth.GenerateToken(
-		user.ID.Hex(),
+		user.ID.String(),
 		string(user.Role),
 		s.config.JWTSecret,
 		s.config.JWTExpiryHours,
@@ -516,7 +516,7 @@ func (s *AuthService) VerifyTwoFactorLogin(
 	}
 
 	refreshToken, refreshExpiry, err := auth.GenerateRefreshToken(
-		user.ID.Hex(),
+		user.ID.String(),
 		s.config.JWTSecret,
 		s.config.RefreshTokenExpiryDays,
 	)
@@ -541,7 +541,7 @@ func (s *AuthService) VerifyTwoFactorLogin(
 
 	if err := s.userRepository.UpdateLastLoginAt(
 		ctx,
-		user.ID.Hex(),
+		user.ID.String(),
 		now,
 	); err != nil {
 		return nil, err
